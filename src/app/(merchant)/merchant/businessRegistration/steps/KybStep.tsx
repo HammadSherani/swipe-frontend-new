@@ -41,8 +41,8 @@ export default function KybStep({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(!!skip);
 
-  // Individual traders never see this step — the backend still needs one
-  // (empty) call to flip cacStatus to VERIFIED and unlock Bank.
+  // Individual and sole proprietorship businesses never see this step — the
+  // backend still accepts an empty call as a safe fallback for stale sessions.
   useEffect(() => {
     if (!skip) return;
     (async () => {
