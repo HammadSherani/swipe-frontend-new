@@ -40,7 +40,7 @@ export function requiresScuml(mccCategory: string): boolean {
 
 export const BUSINESS_TYPES = [
   { value: "INDIVIDUAL_TRADER", label: "Individual Trader (no CAC registration)" },
-  { value: "SOLE_PROPRIETORSHIP", label: "Sole Proprietorship (CAC Business Name)" },
+  { value: "SOLE_PROPRIETORSHIP", label: "Sole Proprietorship" },
   { value: "PARTNERSHIP", label: "Partnership (CAC registered)" },
   { value: "LIMITED_LIABILITY", label: "Limited Liability (Ltd / LLC)" },
   { value: "INCORPORATED_TRUSTEES", label: "Incorporated Trustees (NGO / Association)" },
@@ -73,14 +73,15 @@ export const STEP_ORDER = [
 export type StepKey = (typeof STEP_ORDER)[number] | "DONE";
 
 // The stepper only shows steps that will actually happen for this merchant —
-// Face is gated to INDIVIDUAL_TRADER only, KYB is skipped for INDIVIDUAL_TRADER
-// (mirrors backend/src/modules/merchant/kyc.service.ts: faceRequired() and the
-// INDIVIDUAL_TRADER branch in submitKybStep). Until a business type is picked
+// Face is gated to INDIVIDUAL_TRADER only, KYB is skipped for individual and
+// sole proprietorship businesses (mirrors the backend KYC gates). Until a business type is picked
 // (first visit to step 1) neither can be ruled out yet, so both stay visible.
 export function getVisibleSteps(businessType: string): (typeof STEP_ORDER)[number][] {
   return STEP_ORDER.filter((step) => {
     if (step === "FACE") return !businessType || businessType === "INDIVIDUAL_TRADER";
-    if (step === "KYB") return !businessType || businessType !== "INDIVIDUAL_TRADER";
+    if (step === "KYB") {
+      return !businessType || (businessType !== "INDIVIDUAL_TRADER" && businessType !== "SOLE_PROPRIETORSHIP");
+    }
     return true;
   });
 }

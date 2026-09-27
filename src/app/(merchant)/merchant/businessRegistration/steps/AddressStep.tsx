@@ -17,12 +17,10 @@ export interface AddressData {
 
 export default function AddressStep({
   initial,
-  proofRequired,
   onNext,
   onBack,
 }: {
   initial: AddressData;
-  proofRequired: boolean;
   onNext: (data: AddressData) => void;
   onBack: () => void;
 }) {
@@ -41,7 +39,7 @@ export default function AddressStep({
     if (data.addressCity.trim().length < 2) e.addressCity = "City is required";
     if (!data.addressState) e.addressState = "Select a state";
     if (data.addressLga.trim().length < 2) e.addressLga = "LGA is required";
-    if (proofRequired && !proofFile) e.proof = "Proof of address is required for this business type";
+    if (!proofFile) e.proof = "Proof of address is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -99,18 +97,16 @@ export default function AddressStep({
         <Input icon="solar:point-on-map-bold" value={data.addressLga} onChange={set("addressLga")} placeholder="e.g. Ikeja" />
       </Field>
 
-      {proofRequired && (
-        <Field label="Proof of Address" error={errors.proof} hint="Utility bill or bank statement, no older than 3 months">
-          <ImageDropInput
-            previewLabel="Click to upload proof of address"
-            fileName={proofFile?.name}
-            onFile={(f) => {
-              setProofFile(f);
-              setErrors((e) => ({ ...e, proof: "" }));
-            }}
-          />
-        </Field>
-      )}
+      <Field label="Proof of Address" error={errors.proof} hint="Utility bill or bank statement, no older than 3 months">
+        <ImageDropInput
+          previewLabel="Click to upload proof of address"
+          fileName={proofFile?.name}
+          onFile={(f) => {
+            setProofFile(f);
+            setErrors((e) => ({ ...e, proof: "" }));
+          }}
+        />
+      </Field>
 
       <StepFooter onNext={submit} onBack={onBack} loading={loading} />
     </div>

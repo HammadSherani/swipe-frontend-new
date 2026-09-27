@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import toast from "react-hot-toast";
-import { merchant } from "@/lib/apiClient";
-import { setKycStatus, clearTokens } from "@/lib/tokenStorage";
+import { auth, merchant } from "@/lib/apiClient";
+import { setKycStatus, clearTokens, getRefreshToken } from "@/lib/tokenStorage";
 import handleError from "@/helper/handleError";
 import { STEP_ORDER, STEP_LABELS, StepKey, getVisibleSteps } from "./constants";
 import BusinessStep, { BusinessData } from "./steps/BusinessStep";
@@ -53,6 +53,7 @@ function goToLogin() {
 
 export default function BusinessRegistrationPage() {
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [stepKey, setStepKey] = useState<StepKey>("BUSINESS");
   const [businessData, setBusinessData] = useState<BusinessData>(EMPTY_BUSINESS);
   const [bvnData, setBvnData] = useState<BvnData>(EMPTY_BVN);
@@ -151,6 +152,17 @@ export default function BusinessRegistrationPage() {
     toast.success(status === "ACTIVE" ? "You're approved!" : "Application submitted for review");
   };
 
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await auth.logout(getRefreshToken() ?? undefined);
+    } catch {
+      // Always clear the local session, even if the logout request fails.
+    } finally {
+      goToLogin();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 text-sm text-gray-400">
@@ -179,10 +191,11 @@ export default function BusinessRegistrationPage() {
           </p>
           <button
             type="button"
-            onClick={goToDashboard}
-            className="mt-2 px-6 py-3 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="mt-2 px-6 py-3 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Go to Dashboard
+            {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </div>
       </div>
@@ -251,7 +264,6 @@ export default function BusinessRegistrationPage() {
           {stepKey === "ADDRESS" && (
             <AddressStep
               initial={addressData}
-              proofRequired={businessData.businessType !== "INDIVIDUAL_TRADER"}
               onNext={(data) => {
                 setAddressData(data);
                 refreshStatus();

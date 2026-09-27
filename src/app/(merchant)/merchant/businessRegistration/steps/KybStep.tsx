@@ -28,7 +28,8 @@ export default function KybStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  const skip = businessType === "INDIVIDUAL_TRADER";
+  const skip = businessType === "INDIVIDUAL_TRADER" || businessType === "SOLE_PROPRIETORSHIP";
+  const requiresCac = businessType !== "INDIVIDUAL_TRADER" && businessType !== "SOLE_PROPRIETORSHIP";
   const requiresDirectors = businessRequiresDirectors(businessType);
   const scumlRequired = requiresScumlFor(mccCategory);
 
@@ -70,7 +71,7 @@ export default function KybStep({
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!cacNumber.trim()) e.cacNumber = "CAC number is required for registered businesses";
+    if (requiresCac && !cacNumber.trim()) e.cacNumber = "CAC number is required for registered businesses";
     if (requiresDirectors && !tin.trim()) e.tin = "TIN is required for this business type";
     if (scumlRequired && !scumlNumber.trim()) e.scumlNumber = "SCUML number is required for this business category";
     if (requiresDirectors) {
@@ -89,10 +90,10 @@ export default function KybStep({
     setLoading(true);
     try {
       await merchant.kyc.kyb({
-        cacNumber: cacNumber.trim(),
+        ...(requiresCac ? { cacNumber: cacNumber.trim() } : {}),
         tin: tin.trim() || undefined,
         scumlNumber: scumlNumber.trim() || undefined,
-        sectorLicenseNumber: sectorLicenseNumber.trim() || undefined,
+        ...(requiresCac ? { sectorLicenseNumber: sectorLicenseNumber.trim() || undefined } : {}),
         directors: requiresDirectors
           ? directors.map((d) => ({
               fullName: d.fullName.trim(),
@@ -113,9 +114,11 @@ export default function KybStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label="CAC Registration Number" error={errors.cacNumber}>
-        <Input icon="solar:document-bold" value={cacNumber} onChange={(e) => setCacNumber(e.target.value)} placeholder="RC1234567 or BN1234567" />
-      </Field>
+      {requiresCac && (
+        <Field label="CAC Registration Number" error={errors.cacNumber}>
+          <Input icon="solar:document-bold" value={cacNumber} onChange={(e) => setCacNumber(e.target.value)} placeholder="RC1234567 or BN1234567" />
+        </Field>
+      )}
 
       {requiresDirectors && (
         <Field label="Tax Identification Number (TIN)" error={errors.tin}>
@@ -129,9 +132,11 @@ export default function KybStep({
         </Field>
       )}
 
-      <Field label="Sector License Number (optional)" hint="e.g. PCN, NAFDAC — if applicable">
-        <Input icon="solar:medal-ribbon-bold" value={sectorLicenseNumber} onChange={(e) => setSectorLicenseNumber(e.target.value)} />
-      </Field>
+      {requiresCac && (
+        <Field label="Sector License Number (optional)" hint="e.g. PCN, NAFDAC — if applicable">
+          <Input icon="solar:medal-ribbon-bold" value={sectorLicenseNumber} onChange={(e) => setSectorLicenseNumber(e.target.value)} />
+        </Field>
+      )}
 
       {requiresDirectors && (
         <div className="flex flex-col gap-3">

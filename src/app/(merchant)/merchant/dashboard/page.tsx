@@ -163,7 +163,8 @@ function ApprovalGate({
               )}
               {status === 'PENDING_REVIEW' && (
                 <p className="text-xs text-gray-400 mt-6 flex items-center justify-center gap-1.5">
-                  <Icon icon="line-md:loading-twotone-loop" width={14} /> This page updates automatically once you are approved.
+                  {/* <Icon icon="line-md:loading-twotone-loop" width={14} /> */}
+                   This page updates automatically once you are approved.
                 </p>
               )}
             </div>
