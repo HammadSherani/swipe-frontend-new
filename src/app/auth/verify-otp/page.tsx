@@ -23,6 +23,7 @@ export default function VerifyOtpPage() {
   });
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const router = useRouter();
@@ -119,6 +120,8 @@ export default function VerifyOtpPage() {
   };
 
   const handleVerify = async () => {
+    if (isVerifying) return;
+
     const mobileCode = otp.mobile.join('');
     const emailCode = otp.email.join('');
     if (mobileCode.length !== 6 || emailCode.length !== 6) return;
@@ -132,6 +135,7 @@ export default function VerifyOtpPage() {
     }
 
     try {
+      setIsVerifying(true);
       const response = await auth.verifyOtp(payload);
       const resData = response.data?.data ?? response.data;
       const accessToken = resData?.accessToken;
@@ -174,6 +178,8 @@ export default function VerifyOtpPage() {
         setCanResend(true);
       }
       handleError(error);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -311,13 +317,21 @@ export default function VerifyOtpPage() {
           {/* Verify Button */}
           <button
             onClick={handleVerify}
-            disabled={!isComplete}
-            className={`w-full py-3.5 text-white text-sm font-medium rounded-lg cursor-pointer transition-all duration-200 ${isComplete
-              ? 'bg-gradient-to-r from-primary-500 to-primary-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/40 active:translate-y-0'
-              : 'bg-gray-300 cursor-not-allowed'
+            disabled={!isComplete || isVerifying}
+            aria-busy={isVerifying}
+            className={`w-full py-3.5 text-white text-sm font-medium rounded-lg transition-all duration-200 ${isVerifying
+              ? 'cursor-not-allowed bg-gradient-to-r from-primary-500 to-primary-600 opacity-75'
+              : isComplete
+                ? 'cursor-pointer bg-gradient-to-r from-primary-500 to-primary-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/40 active:translate-y-0'
+                : 'cursor-not-allowed bg-gray-300'
               }`}
           >
-            Verify
+            {isVerifying ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                Verifying...
+              </span>
+            ) : 'Verify'}
           </button>
         </div>
       </div>
