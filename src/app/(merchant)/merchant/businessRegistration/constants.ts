@@ -73,12 +73,14 @@ export const STEP_ORDER = [
 export type StepKey = (typeof STEP_ORDER)[number] | "DONE";
 
 // The stepper only shows steps that will actually happen for this merchant —
-// Face is gated to INDIVIDUAL_TRADER only, KYB is skipped for individual and
-// sole proprietorship businesses (mirrors the backend KYC gates). Until a business type is picked
-// (first visit to step 1) neither can be ruled out yet, so both stay visible.
+// Face verification is required for unregistered businesses. KYB is skipped
+// for individual trader and sole proprietorship (mirrors the backend KYC gates).
+// Until a business type is picked, neither step can be ruled out yet.
 export function getVisibleSteps(businessType: string): (typeof STEP_ORDER)[number][] {
   return STEP_ORDER.filter((step) => {
-    if (step === "FACE") return !businessType || businessType === "INDIVIDUAL_TRADER";
+    if (step === "FACE") {
+      return !businessType || businessType === "INDIVIDUAL_TRADER" || businessType === "SOLE_PROPRIETORSHIP";
+    }
     if (step === "KYB") {
       return !businessType || (businessType !== "INDIVIDUAL_TRADER" && businessType !== "SOLE_PROPRIETORSHIP");
     }

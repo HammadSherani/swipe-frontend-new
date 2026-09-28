@@ -36,8 +36,11 @@ const API = {
 
   ADMIN: {
     STATS: "/admin/dashboard/stats",
+    MERCHANTS: "/admin/merchants",
     PENDING_REVIEW: "/admin/merchants/pending-review",
+    merchant: (id: string) => `/admin/merchants/${id}`,
     decide: (id: string) => `/admin/merchants/${id}/decide`,
+    block: (id: string) => `/admin/merchants/${id}/block`,
   },
 };
 

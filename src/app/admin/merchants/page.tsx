@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
+import { useRouter } from "next/navigation";
 import { admin } from "@/lib/apiClient";
 import VerificationBadges from "../VerificationBadges";
 
-interface PendingMerchant {
+interface AdminMerchant {
     id: string;
     businessName?: string;
     tradeName?: string;
@@ -22,22 +23,26 @@ type ToastType = "success" | "error" | "info";
 interface Toast { show: boolean; type: ToastType; message: string; }
 
 function StatusBadge({ status }: { status?: string }) {
-    const label = status || "PENDING_REVIEW";
+    const label = status || "UNKNOWN";
+    const classes = label === "ACTIVE"
+        ? "bg-emerald-50 text-emerald-700"
+        : label === "REJECTED" || label === "SUSPENDED"
+            ? "bg-rose-50 text-rose-700"
+            : label === "PENDING_REVIEW"
+                ? "bg-amber-50 text-amber-700"
+                : "bg-gray-100 text-gray-700";
     return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700">
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${classes}`}>
             {label.replace(/_/g, " ")}
         </span>
     );
 }
 
 export default function AdminMerchantsPage() {
-    const [merchants, setMerchants] = useState<PendingMerchant[]>([]);
+    const router = useRouter();
+    const [merchants, setMerchants] = useState<AdminMerchant[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<Toast>({ show: false, type: "success", message: "" });
-    const [selected, setSelected] = useState<PendingMerchant | null>(null);
-    const [decision, setDecision] = useState<"APPROVE" | "REJECT">("APPROVE");
-    const [rejectionReason, setRejectionReason] = useState("");
-    const [actionLoading, setActionLoading] = useState(false);
 
     const showToast = (message: string, type: ToastType) => {
         setToast({ show: true, type, message });
@@ -47,12 +52,12 @@ export default function AdminMerchantsPage() {
     const loadMerchants = async () => {
         setLoading(true);
         try {
-            const response = await admin.pendingReview();
+            const response = await admin.merchants();
             const payload = response.data?.data ?? response.data;
-            const list: PendingMerchant[] = Array.isArray(payload) ? payload : payload?.merchants || [];
+            const list: AdminMerchant[] = Array.isArray(payload) ? payload : payload?.merchants || [];
             setMerchants(list);
         } catch (error: any) {
-            showToast(error?.message || "Could not load pending merchants.", "error");
+            showToast(error?.message || "Could not load merchants.", "error");
         } finally {
             setLoading(false);
         }
@@ -62,34 +67,8 @@ export default function AdminMerchantsPage() {
         loadMerchants();
     }, []);
 
-    const openDecide = (merchant: PendingMerchant) => {
-        setDecision("APPROVE");
-        setRejectionReason("");
-        setSelected(merchant);
-    };
-
-    const closeModal = () => setSelected(null);
-
-    const submitDecision = async () => {
-        if (!selected) return;
-        if (decision === "REJECT" && !rejectionReason.trim()) {
-            showToast("Please enter a rejection reason.", "error");
-            return;
-        }
-        setActionLoading(true);
-        try {
-            await admin.decide(selected.id, {
-                decision,
-                rejectionReason: decision === "REJECT" ? rejectionReason : undefined,
-            });
-            showToast(decision === "APPROVE" ? "Merchant approved." : "Merchant rejected.", "success");
-            closeModal();
-            loadMerchants();
-        } catch (error: any) {
-            showToast(error?.message || "Could not record decision.", "error");
-        } finally {
-            setActionLoading(false);
-        }
+    const openDetails = (merchant: AdminMerchant) => {
+        router.push(`/admin/merchants/${encodeURIComponent(merchant.id)}`);
     };
 
     return (
@@ -104,8 +83,8 @@ export default function AdminMerchantsPage() {
             )}
 
             <div className="mb-7">
-                <h1 className="text-[22px] font-bold text-gray-900">Merchant review queue</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Check each merchant's verification results, then approve or reject the application.</p>
+                <h1 className="text-[22px] font-bold text-gray-900">Merchants</h1>
+                <p className="text-sm text-gray-500 mt-0.5">Browse merchant profiles and review their verification details.</p>
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -116,7 +95,7 @@ export default function AdminMerchantsPage() {
                 ) : merchants.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-center">
                         <Icon icon="solar:inbox-bold" className="text-5xl text-gray-300 mb-3" />
-                        <p className="text-sm font-semibold text-gray-500">No merchants pending review.</p>
+                        <p className="text-sm font-semibold text-gray-500">No merchants found.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -133,7 +112,17 @@ export default function AdminMerchantsPage() {
                             </thead>
                             <tbody>
                                 {merchants.map((m) => (
-                                    <tr key={m.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors">
+                                    <tr
+                                        key={m.id}
+                                        onClick={() => openDetails(m)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") openDetails(m);
+                                        }}
+                                        tabIndex={0}
+                                        role="link"
+                                        aria-label={`View details for ${m.businessName || m.id}`}
+                                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF] cursor-pointer transition-colors"
+                                    >
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-gray-900">{m.businessName || "-"}</div>
                                             {m.tradeName && <div className="text-xs text-gray-400">{m.tradeName}</div>}
@@ -148,10 +137,13 @@ export default function AdminMerchantsPage() {
                                         <td className="px-6 py-4 text-right">
                                             <button
                                                 type="button"
-                                                onClick={() => openDecide(m)}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    openDetails(m);
+                                                }}
                                                 className="px-3.5 py-2 bg-[#635BFF] hover:bg-[#5147e5] text-white rounded-lg font-bold text-xs transition-all"
                                             >
-                                                Review &amp; decide
+                                                View details
                                             </button>
                                         </td>
                                     </tr>
@@ -162,56 +154,6 @@ export default function AdminMerchantsPage() {
                 )}
             </div>
 
-            {selected && (
-                <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-gray-900">Review merchant</h2>
-                            <button type="button" onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                                <Icon icon="solar:close-circle-bold" className="text-xl" />
-                            </button>
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900">{selected.businessName || selected.id}</p>
-                        <p className="text-xs text-gray-400 mb-3">{selected.ownerName} · {selected.email}</p>
-                        <div className="mb-5"><VerificationBadges merchant={selected} /></div>
-
-                        <div className="space-y-4">
-                            <div className="flex gap-3">
-                                {(["APPROVE", "REJECT"] as const).map((opt) => (
-                                    <button
-                                        key={opt}
-                                        type="button"
-                                        onClick={() => setDecision(opt)}
-                                        className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition-all
-                                            ${decision === opt
-                                                ? opt === "APPROVE" ? "bg-emerald-500 border-emerald-500 text-white" : "bg-rose-500 border-rose-500 text-white"
-                                                : "bg-white border-gray-200 text-gray-600"}`}
-                                    >
-                                        {opt === "APPROVE" ? "Approve" : "Reject"}
-                                    </button>
-                                ))}
-                            </div>
-                            {decision === "REJECT" && (
-                                <textarea
-                                    value={rejectionReason}
-                                    onChange={(e) => setRejectionReason(e.target.value)}
-                                    placeholder="Rejection reason"
-                                    rows={3}
-                                    className="w-full p-3 border border-gray-200 rounded-xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF]"
-                                />
-                            )}
-                            <button
-                                type="button"
-                                onClick={submitDecision}
-                                disabled={actionLoading}
-                                className="w-full py-3 bg-[#635BFF] hover:bg-[#5147e5] text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-                            >
-                                {actionLoading ? "Submitting..." : "Confirm decision"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

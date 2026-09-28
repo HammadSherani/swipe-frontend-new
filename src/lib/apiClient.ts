@@ -36,8 +36,11 @@ export const merchant = {
 
 export const admin = {
   stats: () => axiosInstance.get(API.ADMIN.STATS),
+  merchants: () => axiosInstance.get(API.ADMIN.MERCHANTS),
   pendingReview: () => axiosInstance.get(API.ADMIN.PENDING_REVIEW),
+  merchant: (id: string) => axiosInstance.get(API.ADMIN.merchant(id)),
   decide: (id: string, payload: AnyObj) => axiosInstance.post(API.ADMIN.decide(id), payload),
+  block: (id: string) => axiosInstance.post(API.ADMIN.block(id)),
 };
 
 export const user = {
