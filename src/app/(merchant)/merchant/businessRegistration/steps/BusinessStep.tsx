@@ -18,9 +18,11 @@ export interface BusinessData {
 export default function BusinessStep({
   initial,
   onNext,
+  onBusinessTypeChange,
 }: {
   initial: BusinessData;
   onNext: (data: BusinessData) => void;
+  onBusinessTypeChange?: (businessType: string) => void;
 }) {
   const [data, setData] = useState<BusinessData>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -28,7 +30,11 @@ export default function BusinessStep({
 
   const set = (field: keyof BusinessData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => setData((d) => ({ ...d, [field]: e.target.value }));
+  ) => {
+    const value = e.target.value;
+    setData((d) => ({ ...d, [field]: value }));
+    if (field === "businessType") onBusinessTypeChange?.(value);
+  };
 
   const validate = () => {
     const e: Record<string, string> = {};

@@ -151,12 +151,14 @@ export function ImageDropInput({
 
 // Matches the numbered-badge-and-divider section header used at the top of
 // every step card ("① Business Information ————————").
-export function SectionHeader({ number, title }: { number: number; title: string }) {
+export function SectionHeader({ number, title }: { number?: number; title: string }) {
   return (
     <div className="flex items-center gap-3 mb-5">
-      <span className="shrink-0 w-7 h-7 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
-        {number}
-      </span>
+      {number !== undefined && (
+        <span className="shrink-0 w-7 h-7 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
+          {number}
+        </span>
+      )}
       <span className="shrink-0 text-base font-semibold text-gray-900">{title}</span>
       <span className="flex-1 border-t border-gray-200" />
     </div>

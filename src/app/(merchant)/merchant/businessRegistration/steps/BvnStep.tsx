@@ -25,6 +25,10 @@ export default function BvnStep({
   const [data, setData] = useState<BvnData>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const today = new Date();
+  const todayValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const minimumDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+  const minimumDobValue = `${minimumDob.getFullYear()}-${String(minimumDob.getMonth() + 1).padStart(2, "0")}-${String(minimumDob.getDate()).padStart(2, "0")}`;
 
   const set = (field: keyof BvnData) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setData((d) => ({ ...d, [field]: e.target.value }));
@@ -34,6 +38,8 @@ export default function BvnStep({
     if (!/^\d{11}$/.test(data.bvn)) e.bvn = "BVN must be exactly 11 digits";
     if (data.ownerName.trim().length < 2) e.ownerName = "Owner name is required";
     if (!data.ownerDob) e.ownerDob = "Date of birth is required";
+    else if (data.ownerDob > todayValue) e.ownerDob = "Date of birth cannot be in the future";
+    else if (data.ownerDob > minimumDobValue) e.ownerDob = "Owner must be at least 18 years old";
     if (!/^(?:\+234|234|0)[789][01]\d{8}$/.test(data.mobile))
       e.mobile = "Invalid Nigerian mobile number format. Use 080... or +234...";
     if (!data.consent) e.consent = "Consent to BVN verification is required";
@@ -74,7 +80,24 @@ export default function BvnStep({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Owner Date of Birth" error={errors.ownerDob}>
-          <Input icon="solar:calendar-bold" type="date" value={data.ownerDob} onChange={set("ownerDob")} />
+          <Input
+            icon="solar:calendar-bold"
+            type="date"
+            max={minimumDobValue}
+            value={data.ownerDob}
+            onChange={(e) => {
+              set("ownerDob")(e);
+              setErrors((current) => ({
+                ...current,
+                ownerDob:
+                  e.target.value > todayValue
+                    ? "Date of birth cannot be in the future"
+                    : e.target.value > minimumDobValue
+                      ? "Owner must be at least 18 years old"
+                      : "",
+              }));
+            }}
+          />
         </Field>
 
         <Field label="Mobile Number" error={errors.mobile}>

@@ -358,10 +358,10 @@ export default function AdminMerchantDetailPage() {
                             <Fields items={[
                                 { label: "Address line 1", value: pick(address, "addressLine1", "line1") },
                                 { label: "Address line 2", value: pick(address, "addressLine2", "line2") },
-                                { label: "City", value: address.city },
-                                { label: "State", value: address.state },
+                                { label: "City", value: pick(address, "addressCity", "city") },
+                                { label: "State", value: pick(address, "addressState", "state") },
                                 { label: "LGA", value: pick(address, "lga", "LGA") },
-                                { label: "Country", value: address.country },
+                                { label: "Country", value: pick(address, "addressCountry", "country") },
                                 { label: "Proof of address", value: pick(address, "proofOfAddressUrl", "proofOfAddress", "addressProofUrl"), href: true },
                             ]} />
                         </Section>
