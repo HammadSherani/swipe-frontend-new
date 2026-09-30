@@ -16,7 +16,9 @@ export function getCurrentUser(): DecodedUser | null {
   const token = getAccessToken();
   if (!token) return null;
   try {
-    return jwtDecode<DecodedUser>(token);
+    const user = jwtDecode<DecodedUser>(token);
+    if (user.exp && user.exp * 1000 <= Date.now()) return null;
+    return user;
   } catch {
     return null;
   }

@@ -11,7 +11,7 @@ import * as yup from 'yup';
 import loginImage from '../../../../public/assets/auth/login-img.webp';
 import logo from '../../../../public/assets/logo.png';
 import { auth } from '../../../lib/apiClient';
-import { setTokens, setKycStatus } from '@/lib/tokenStorage';
+import { clearTokens, getAccessToken, setTokens, setKycStatus } from '@/lib/tokenStorage';
 import { getCurrentUser } from '@/helper/currentUser';
 import handleError from '@/helper/handleError';
 
@@ -37,9 +37,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const token = getAccessToken();
       if (token) {
-        router.replace(getCurrentUser()?.role === 'ADMIN' ? '/admin/merchants' : '/merchant/dashboard');
+        const user = getCurrentUser();
+        if (!user) {
+          // A proxy redirect can remove cookies while an expired access token
+          // remains in localStorage. Do not redirect in a stale-token loop.
+          clearTokens();
+          return;
+        }
+        router.replace(user.role === 'ADMIN' ? '/admin/merchants' : '/merchant/dashboard');
       }
     }
   }, [router]);

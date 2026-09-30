@@ -23,6 +23,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
         const user = getCurrentUser();
 
         if (!user) {
+            clearTokens();
             router.push("/auth/login");
             return;
         }

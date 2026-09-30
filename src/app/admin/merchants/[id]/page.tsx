@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { admin } from "@/lib/apiClient";
 
@@ -112,6 +112,7 @@ function statusLabel(value: unknown): string {
 
 export default function AdminMerchantDetailPage() {
     const params = useParams<{ id: string }>();
+    const router = useRouter();
     const merchantId = params.id;
     const [merchant, setMerchant] = useState<MerchantRecord | null>(null);
     const [loading, setLoading] = useState(true);

@@ -8,6 +8,8 @@ import registerImage from '../../../../public/assets/auth/register-img.webp';
 import Image from 'next/image';
 import logo from '../../../../public/assets/logo.png';
 import { auth } from '../../../lib/apiClient';
+import { clearTokens, getAccessToken } from '@/lib/tokenStorage';
+import { getCurrentUser } from '@/helper/currentUser';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -49,9 +51,14 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const token = getAccessToken();
       if (token) {
-        router.push('/merchant/businessRegistration');
+        const user = getCurrentUser();
+        if (!user) {
+          clearTokens();
+          return;
+        }
+        router.push(user.role === 'ADMIN' ? '/admin/merchants' : '/merchant/businessRegistration');
       }
     }
   }, [router]);
