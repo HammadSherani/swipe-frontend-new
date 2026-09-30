@@ -200,6 +200,29 @@ export default function AdminMerchantDetailPage() {
         }
     };
 
+    const deleteMerchant = async () => {
+        const businessName = display(pick(merchant ?? {}, "businessName", "tradeName"));
+        const confirmed = window.confirm(
+            `Delete ${businessName}? This permanently removes the merchant account, KYC data, audit history, QR codes, payment links, and virtual accounts.`
+        );
+        if (!confirmed) return;
+
+        setActionLoading(true);
+        setActionFeedback(null);
+        try {
+            await admin.delete(merchantId);
+            router.replace("/admin/merchants");
+        } catch (requestError) {
+            const message = asRecord(requestError)?.message;
+            setActionFeedback({
+                type: "error",
+                message: typeof message === "string" ? message : "Could not delete the merchant.",
+            });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const address = asRecord(merchant?.address) ?? merchant ?? {};
     const directors = merchant ? records(merchant, "directors", "persons", "beneficialOwners") : [];
     const qrCodes = merchant ? records(merchant, "qrCodes", "qrCodeRecords") : [];
@@ -255,6 +278,17 @@ export default function AdminMerchantDetailPage() {
                         <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">
                             {statusLabel(pick(merchant, "status", "applicationStatus"))}
                         </span>
+                    </div>
+
+                    <div className="mb-6 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={deleteMerchant}
+                            disabled={actionLoading}
+                            className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {actionLoading ? "Deleting..." : "Delete merchant"}
+                        </button>
                     </div>
 
                     {merchantStatus === "ACTIVE" ? (

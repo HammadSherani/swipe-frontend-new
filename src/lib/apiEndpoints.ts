@@ -41,6 +41,7 @@ const API = {
     merchant: (id: string) => `/admin/merchants/${id}`,
     decide: (id: string) => `/admin/merchants/${id}/decide`,
     block: (id: string) => `/admin/merchants/${id}/block`,
+    delete: (id: string) => `/admin/merchants/${id}`,
   },
 };
 

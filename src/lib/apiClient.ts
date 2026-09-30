@@ -41,6 +41,7 @@ export const admin = {
   merchant: (id: string) => axiosInstance.get(API.ADMIN.merchant(id)),
   decide: (id: string, payload: AnyObj) => axiosInstance.post(API.ADMIN.decide(id), payload),
   block: (id: string) => axiosInstance.post(API.ADMIN.block(id)),
+  delete: (id: string) => axiosInstance.delete(API.ADMIN.delete(id)),
 };
 
 export const user = {
