@@ -204,41 +204,49 @@ export default function BusinessRegistrationPage() {
 
   const currentIndex = Math.max(0, visibleSteps.indexOf(stepKey as (typeof STEP_ORDER)[number]));
   const hasBusinessType = Boolean(businessData.businessType);
+  const showAllSteps = hasBusinessType && stepKey !== "BUSINESS";
+  const stepperSteps = showAllSteps
+    ? visibleSteps
+    : (["BUSINESS"] as (typeof STEP_ORDER)[number][]);
+  const stepperCurrentIndex = showAllSteps ? currentIndex : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-2xl">
-        {/* Stepper is shown only after the business type determines the flow. */}
-        {hasBusinessType && (
-          <div className="relative mb-8 flex items-start justify-between">
+        {/* Show only Business until the selected business type determines the flow. */}
+        <div className={`relative mb-8 flex items-start ${showAllSteps ? "justify-between" : "justify-start"}`}>
+          {showAllSteps && (
             <div className="absolute left-3.5 right-3.5 top-3.5 h-0 border-t-2 border-dashed border-gray-300" />
-            {visibleSteps.map((step, i) => {
-              const completed = i < currentIndex;
-              const active = i === currentIndex;
-              return (
-                <div key={step} className="relative z-10 flex flex-1 flex-col items-center gap-1.5">
-                  <div
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                      completed || active
-                        ? "bg-violet-600 text-white"
-                        : "border-2 border-gray-300 bg-white text-gray-400"
-                    }`}
-                  >
-                    {completed ? <Icon icon="solar:check-bold" width={14} /> : i + 1}
-                  </div>
-                  <span
-                    className={`hidden text-center text-[10px] leading-tight sm:block ${
-                      completed || active ? "font-semibold text-gray-900" : "font-medium text-gray-400"
-                    }`}
-                  >
-                    {STEP_LABELS[step]}
-                  </span>
-                  {active && <span className="hidden h-0.5 w-6 rounded-full bg-violet-600 sm:block" />}
+          )}
+          {stepperSteps.map((step, i) => {
+            const completed = i < stepperCurrentIndex;
+            const active = i === stepperCurrentIndex;
+            return (
+              <div
+                key={step}
+                className={`relative z-10 flex flex-col items-center gap-1.5 ${showAllSteps ? "flex-1" : "w-20"}`}
+              >
+                <div
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                    completed || active
+                      ? "bg-violet-600 text-white"
+                      : "border-2 border-gray-300 bg-white text-gray-400"
+                  }`}
+                >
+                  {completed ? <Icon icon="solar:check-bold" width={14} /> : i + 1}
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <span
+                  className={`hidden text-center text-[10px] leading-tight sm:block ${
+                    completed || active ? "font-semibold text-gray-900" : "font-medium text-gray-400"
+                  }`}
+                >
+                  {STEP_LABELS[step]}
+                </span>
+                {active && <span className="hidden h-0.5 w-6 rounded-full bg-violet-600 sm:block" />}
+              </div>
+            );
+          })}
+        </div>
 
         <h1 className="text-3xl font-extrabold text-gray-900 text-center mb-1">Business Registration Form</h1>
         <p className="text-sm text-gray-500 text-center mb-8">
@@ -247,14 +255,13 @@ export default function BusinessRegistrationPage() {
 
         <div className="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-sm">
           <SectionHeader
-            number={hasBusinessType ? currentIndex + 1 : undefined}
+            number={currentIndex + 1}
             title={STEP_LABELS[stepKey as (typeof STEP_ORDER)[number]]}
           />
 
           {stepKey === "BUSINESS" && (
             <BusinessStep
               initial={businessData}
-              onBusinessTypeChange={(businessType) => setBusinessData((data) => ({ ...data, businessType }))}
               onNext={(data) => {
                 setBusinessData(data);
                 refreshStatus();

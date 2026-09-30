@@ -1,4 +1,5 @@
-import axios from "axios";
+import axios, { type AxiosError, type AxiosRequestConfig } from "axios";
+import { clearTokens, getRefreshToken, setAccessToken } from "./tokenStorage";
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3010";
 
@@ -9,6 +10,49 @@ const axiosInstance = axios.create({
   },
   timeout: 60000,
 });
+
+type RetriableRequestConfig = AxiosRequestConfig & {
+  _authRetry?: boolean;
+};
+
+let refreshPromise: Promise<string> | null = null;
+
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+
+  clearTokens();
+  if (window.location.pathname !== "/auth/login") {
+    window.location.href = "/auth/login";
+  }
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) throw new Error("No refresh token available");
+
+  // Use the plain axios client here so a failed refresh cannot recursively
+  // trigger this same response interceptor.
+  const response = await axios.post(`${baseURL}/auth/refresh`, { refreshToken }, {
+    headers: { "Content-Type": "application/json" },
+    timeout: 60000,
+  });
+
+  const accessToken = response.data?.data?.accessToken ?? response.data?.accessToken;
+  if (!accessToken) throw new Error("Refresh response did not include an access token");
+
+  setAccessToken(accessToken);
+  return accessToken;
+}
+
+function getOrCreateRefreshPromise() {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
 
 axiosInstance.interceptors.request.use(
   (config) => {
@@ -23,32 +67,39 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error: AxiosError) => {
     const status = error?.response?.status;
     const url: string = error?.config?.url || "";
     const isAuthEndpoint = url.startsWith("/auth/");
+    const originalRequest = error.config as RetriableRequestConfig | undefined;
 
-    // A 401 on a protected route means the session is invalid/expired - clear it
-    // and bounce to login. Skip this for the auth endpoints themselves (e.g. a
-    // wrong-password login attempt also returns 401, and that should just show
-    // an inline error, not force a redirect).
+    // Access tokens are short-lived. Refresh them once before clearing the
+    // session. Auth endpoints are skipped so login/registration validation
+    // errors remain visible on their own pages.
     if (status === 401 && !isAuthEndpoint && typeof window !== "undefined") {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
-      document.cookie = "accessToken=; path=/; max-age=0";
-      document.cookie = "token=; path=/; max-age=0";
-      document.cookie = "refreshToken=; path=/; max-age=0";
-      if (window.location.pathname !== "/auth/login") {
-        window.location.href = "/auth/login";
+      if (originalRequest && !originalRequest._authRetry) {
+        originalRequest._authRetry = true;
+
+        try {
+          const accessToken = await getOrCreateRefreshPromise();
+          originalRequest.headers = {
+            ...originalRequest.headers,
+            Authorization: `Bearer ${accessToken}`,
+          };
+          return axiosInstance(originalRequest);
+        } catch {
+          redirectToLogin();
+        }
       }
     }
 
+    const responseData = error?.response?.data as
+      | { error?: { message?: string }; message?: string }
+      | undefined;
     const normalized = {
       message:
-        error?.response?.data?.error?.message ||
-        error?.response?.data?.message ||
+        responseData?.error?.message ||
+        responseData?.message ||
         error?.message ||
         "Network Error",
       status,
