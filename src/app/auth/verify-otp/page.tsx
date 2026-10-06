@@ -11,25 +11,17 @@ import handleError from '@/helper/handleError';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
-interface OtpState {
-  mobile: string[];
-  email: string[];
-}
-
 export default function VerifyOtpPage() {
-  const [otp, setOtp] = useState<OtpState>({
-    mobile: ['', '', '', '', '', ''],
-    email: ['', '', '', '', '', ''],
-  });
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const router = useRouter();
 
-  const mobileRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const emailRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // ✅ Load email & mobile from localStorage on mount
   useEffect(() => {
@@ -56,83 +48,88 @@ export default function VerifyOtpPage() {
     }
   }, [timer]);
 
-  const handleChange = (type: 'mobile' | 'email', index: number, value: string) => {
+  const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
 
-    const newOtp = { ...otp, [type]: [...otp[type]] };
-    newOtp[type][index] = value.slice(-1);
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
     setOtp(newOtp);
 
     // Auto-focus next
     if (value && index < 5) {
-      const refs = type === 'mobile' ? mobileRefs : emailRefs;
-      refs.current[index + 1]?.focus();
+      otpRefs.current[index + 1]?.focus();
     }
   };
 
-  const handleKeyDown = (type: 'mobile' | 'email', index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    const refs = type === 'mobile' ? mobileRefs : emailRefs;
-    const currentOtp = otp[type];
-
-    if (e.key === 'Backspace' && !currentOtp[index] && index > 0) {
-      refs.current[index - 1]?.focus();
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
-  const handlePaste = (type: 'mobile' | 'email', e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    const newOtp = { ...otp, [type]: [...otp[type]] };
+    const newOtp = ['', '', '', '', '', ''];
 
     pasted.split('').forEach((digit, i) => {
-      if (i < 6) newOtp[type][i] = digit;
+      if (i < 6) newOtp[i] = digit;
     });
 
     setOtp(newOtp);
 
-    const refs = type === 'mobile' ? mobileRefs : emailRefs;
     const focusIndex = Math.min(pasted.length, 5);
-    refs.current[focusIndex]?.focus();
+    otpRefs.current[focusIndex]?.focus();
   };
 
   const handleResend = async () => {
-    if (!canResend) return;
+    if (!canResend || isResending) return;
 
-    // ✅ Use stored email/mobile
-    const payload = {
-      email,
-      mobile,
-      type: "email" // or "mobile" or "both"
+    const resendEmail = email || localStorage.getItem('pendingEmail') || '';
+    const resendMobile = mobile || localStorage.getItem('pendingMobile') || '';
+    if (!resendEmail || !resendMobile) {
+      toast.error('Registration details are missing. Please register again.');
+      return;
     }
 
+    const payload = {
+      email: resendEmail,
+      mobile: resendMobile,
+    };
+
     try {
+      setIsResending(true);
       await auth.resendOtp(payload);
       setTimer(30);
       setCanResend(false);
-      setOtp({
-        mobile: ['', '', '', '', '', ''],
-        email: ['', '', '', '', '', ''],
-      });
+      setOtp(['', '', '', '', '', '']);
       toast.success('OTP resent successfully!');
     } catch (error) {
       handleError(error);
+    } finally {
+      setIsResending(false);
     }
   };
 
   const handleVerify = async () => {
     if (isVerifying) return;
 
-    const mobileCode = otp.mobile.join('');
-    const emailCode = otp.email.join('');
-    if (mobileCode.length !== 6 || emailCode.length !== 6) return;
+    const code = otp.join('');
+    if (code.length !== 6) return;
 
-    // ✅ Use stored email/mobile
-    const payload = {
-      email,
-      emailOtp: emailCode,
-      mobile,
-      mobileOtp: mobileCode,
+    const verifyEmail = email || localStorage.getItem('pendingEmail') || '';
+    const verifyMobile = mobile || localStorage.getItem('pendingMobile') || '';
+    if (!verifyEmail || !verifyMobile) {
+      toast.error('Registration details are missing. Please register again.');
+      return;
     }
+
+    const payload = {
+      email: verifyEmail,
+      emailOtp: code,
+      mobile: verifyMobile,
+      mobileOtp: code,
+    };
 
     try {
       setIsVerifying(true);
@@ -183,9 +180,7 @@ export default function VerifyOtpPage() {
     }
   };
 
-  const isMobileComplete = otp.mobile.every((digit) => digit !== '');
-  const isEmailComplete = otp.email.every((digit) => digit !== '');
-  const isComplete = isMobileComplete && isEmailComplete;
+  const isComplete = otp.every((digit) => digit !== '');
 
 
   return (
@@ -230,87 +225,46 @@ export default function VerifyOtpPage() {
             Verify OTP
           </h1>
           <p className="text-sm text-gray-400 text-center mb-6">
-            We have sent a OTP to your mobile number and email
+            We have sent one OTP to your mobile number and email
           </p>
 
-          {/* Mobile OTP Section */}
+          {/* Shared OTP Section */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700">Mobile OTP</span>
+              <span className="text-sm font-medium text-gray-700">Enter OTP</span>
             </div>
             <div className="flex justify-center gap-2 mb-3">
               {[0, 1, 2, 3, 4, 5].map((index) => (
                 <input
-                  key={`mobile-${index}`}
-                  ref={(el) => { mobileRefs.current[index] = el; }}
+                  key={`otp-${index}`}
+                  ref={(el) => { otpRefs.current[index] = el; }}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
-                  value={otp.mobile[index]}
-                  onChange={(e) => handleChange('mobile', index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown('mobile', index, e)}
-                  onPaste={(e) => handlePaste('mobile', e)}
+                  value={otp[index]}
+                  onChange={(e) => handleChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={handlePaste}
                   className="w-12 h-14 text-center text-lg font-semibold border-2 border-gray-200 rounded-lg outline-none transition-all duration-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 text-gray-800 placeholder-gray-300"
                   placeholder="-"
                 />
               ))}
             </div>
-            {/* <p className="text-center text-xs text-gray-400">
-              <span>OTP sent to mobile</span>
-            </p> */}
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">and</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          {/* Email OTP Section */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2">
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700">Email OTP</span>
-            </div>
-            <div className="flex justify-center gap-2 mb-3">
-              {[0, 1, 2, 3, 4, 5].map((index) => (
-                <input
-                  key={`email-${index}`}
-                  ref={(el) => { emailRefs.current[index] = el; }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={otp.email[index]}
-                  onChange={(e) => handleChange('email', index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown('email', index, e)}
-                  onPaste={(e) => handlePaste('email', e)}
-                  className="w-12 h-14 text-center text-lg font-semibold border-2 border-gray-200 rounded-lg outline-none transition-all duration-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 text-gray-800 placeholder-gray-300"
-                  placeholder="-"
-                />
-              ))}
-            </div>
-            {/* <p className="text-center text-xs text-gray-400">
-              <span>OTP sent to email</span>
-            </p> */}
+            <p className="text-center text-xs text-gray-400">
+              This OTP is for both your email and mobile number.
+            </p>
           </div>
 
           <div className="mb-6 text-center">
             <button
               onClick={handleResend}
-              disabled={!canResend}
+              disabled={!canResend || isResending}
               className={`px-6 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${canResend
                 ? 'bg-primary-500 text-white hover:bg-primary-600'
                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
             >
-              Resend OTP
+              {isResending ? 'Sending...' : canResend ? 'Resend OTP' : `Resend OTP in ${timer}s`}
             </button>
           </div>
 
